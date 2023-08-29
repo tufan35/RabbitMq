@@ -11,10 +11,15 @@ using IConnection connection = factory.CreateConnection();
 using IModel channel = connection.CreateModel();
 
 //Que Que oluiturma 
-//QueueDeclare : parameter : durable => mesajların kalıcığı ile ilgili parametredir.
+//QueueDeclare : parameter : durable => mesajların kalıcığı ile ilgili parametredir. kuyruk kaybını engellemek içindir.
 //QueueDeclare : parameter : exclusive=> birden fazla bağlantıyla işlem yapılıp yapılmayacağı gösteren paramtere default = true
 
-channel.QueueDeclare(queue: "example-queque", exclusive: false);
+channel.QueueDeclare(queue: "example-queque", exclusive: false, durable: true);
+
+
+///burdaki oluşturulan instance mesaj kaybını engellemek içindir
+IBasicProperties properties = channel.CreateBasicProperties();
+properties.Persistent = true;
 
 ///Kuyruğa mesaj iletme
 // rabbitmq kuyruğa atacağı mesajları byte türünden atar ve byte dönüştürmek gerekiyor
@@ -25,8 +30,8 @@ channel.QueueDeclare(queue: "example-queque", exclusive: false);
 for (int i = 0; i < 100; i++)
 {
     await Task.Delay(200);
-    var message = Encoding.UTF8.GetBytes("Merhaba" + i);
-    channel.BasicPublish(exchange: "", routingKey: "example-queque", body: message);
+    var message = Encoding.UTF8.GetBytes("Merhaba : " + i);
+    channel.BasicPublish(exchange: "", routingKey: "example-queque", body: message, basicProperties: properties); //basicProperties kuyrugun ve mesjaların kaybolamasını engelleycektir rabbitMq sunucusu dursa bile
 }
 
 Console.Read();
