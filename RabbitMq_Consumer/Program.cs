@@ -1,54 +1,43 @@
 ﻿using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
-//Bağlantı Oluşturma
+
+//exchange üzerinden herhangi bir mesaj iletilyorsa exchange type direct olduuğu için rabbitmq routing keye bakacaktır routing keye karsılık gelen hangi que ise mesaj oaraya iletilcektir.
+
 ConnectionFactory factory = new();
 factory.Uri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
-//Bağlantı aktifleştirme ve Kanal açma 
+
 using IConnection connection = factory.CreateConnection();
 using IModel channel = connection.CreateModel();
 
+//1.adım
+channel.ExchangeDeclare(exchange: "direct-exchange-example", type: ExchangeType.Direct);
 
-// Queque oluşturma
-channel.QueueDeclare(queue: "example-queque", exclusive: false, durable: true); //consumerdaki kuyruk puslisherdaki ile birebir aynı yapılandırma da tanımlanlaıdır.
+//2.adım
+string qname = channel.QueueDeclare().QueueName;
 
-//queque den mesaj okuma 
+//3.adım 
+channel.QueueBind(
+    queue: qname,
+    exchange: "direct-exchange-example",
+    routingKey: "direct-queque-example"
+    );
 
 EventingBasicConsumer consumer = new(channel);
-
-var consumerTag = channel.BasicConsume(queue: "example-queque", autoAck: false, consumer);
-
-///Mesaj işleme Konf.
-///Mesajların işleme hızını vei işlemee sırasını fair dispatch özelliğini conf. edebiliyoruz
-///parameter : prefetchSize : bir consumer tarafından alınacak en büyük mesaj boyutu byte cinsişnden beilirler 0 sınırsız demektei.
-///paramtr : prefetchCount bir consumer tarafından  aynı anda işleme alınavailecek mesaj sayısısnı belirler
-///pamater : global tüm consumerlarda mı yoksa sadece cağrı yapılan counsumerda mı yapıalcaghını belirtir
-channel.BasicQos(0, 1, false);
-
-///basicCncel methodu gelen bütün queque deki mesajları işlemez reddeder
-///channel.BasicCancel(consumerTag);
-
-///basicreject ile gelen tek bir mesajı reddeder
-///channel.BasicReject(deliveryTag:3,requeue:true);
+channel.BasicConsume(
+    queue: qname,
+    autoAck: true,
+    consumer: consumer
+    );
 
 consumer.Received += (sender, e) =>
 {
-    //Kuyruga gelen mesajın işlendiği yerdir 
-    //e.body = kuyruktaki mesajın bütünsel olarak getirecetir
-    //e.body.Span vyea e.body.ToArray() kuyruktaki mesajı getirecekrie.
-
-
-    Console.WriteLine(Encoding.UTF8.GetString(e.Body.Span));
-
-    //multiple : false => sadece delete edilmesini istediğim channeldaki mesajı silinmesini istiyorum
-    channel.BasicAck(deliveryTag: e.DeliveryTag, multiple: false);
-
-    ///BasicNack ile işlenmeyen mesajları geri gönderirr
-    ///requeque parametresi işlenmeyen parametrelerin kuyrukta silinip silinmeyeceğine karar vermektedir.
-    //channel.BasicNack(deliveryTag:e.DeliveryTag,multiple:false,requeue:true);
-
-
-
+    var message = Encoding.UTF8.GetString(e.Body.Span);
+    Console.WriteLine(message);
 };
 
 Console.Read();
+
+
+//1.adım publisherdaki aynı isim ve type sahip bir exhange tanımalncaktır.
+//2.adım publishr tarfından routing keydeli bulunan değerdeki kuyruğa gönddeilen mesajları kendi oluiştrdugumz kuyruya yönlendirerek tüketmemiz gerekit nbunun için öncelikle kuyruk olusturulmaldur

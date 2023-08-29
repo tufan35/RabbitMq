@@ -1,37 +1,31 @@
 ﻿using RabbitMQ.Client;
 using System.Text;
 
+///Direct_Exchange : Mesajların direkt olarak belirli bir kuyruga gönderilmesinisağlayan exchangedir
+
 ConnectionFactory factory = new();
 
-//Bağlantı Oluştuma
 factory.Uri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
 
-//Bağlantı aktiflestirme ve kanal acma
 using IConnection connection = factory.CreateConnection();
 using IModel channel = connection.CreateModel();
 
-//Que Que oluiturma 
-//QueueDeclare : parameter : durable => mesajların kalıcığı ile ilgili parametredir. kuyruk kaybını engellemek içindir.
-//QueueDeclare : parameter : exclusive=> birden fazla bağlantıyla işlem yapılıp yapılmayacağı gösteren paramtere default = true
+channel.ExchangeDeclare(exchange: "direct-exchange-example", type: ExchangeType.Direct);
 
-channel.QueueDeclare(queue: "example-queque", exclusive: false, durable: true);
-
-
-///burdaki oluşturulan instance mesaj kaybını engellemek içindir
-IBasicProperties properties = channel.CreateBasicProperties();
-properties.Persistent = true;
-
-///Kuyruğa mesaj iletme
-// rabbitmq kuyruğa atacağı mesajları byte türünden atar ve byte dönüştürmek gerekiyor
-//channel.BasicPublish parameter : exchange default Direct Exhangtir
-//var message = Encoding.UTF8.GetBytes("Merhaba");
-//channel.BasicPublish(exchange: "", routingKey: "example-queque", body: message);
-
-for (int i = 0; i < 100; i++)
+while (true)
 {
-    await Task.Delay(200);
-    var message = Encoding.UTF8.GetBytes("Merhaba : " + i);
-    channel.BasicPublish(exchange: "", routingKey: "example-queque", body: message, basicProperties: properties); //basicProperties kuyrugun ve mesjaların kaybolamasını engelleycektir rabbitMq sunucusu dursa bile
+    Console.WriteLine("mesaj : ");
+
+    string mes = Console.ReadLine();
+    var bytemes = Encoding.UTF8.GetBytes(mes);
+
+    channel.BasicPublish(
+        exchange: "direct-exchange-example",
+        routingKey: "direct-queque-example",
+        body: bytemes
+        );
 }
+
+
 
 Console.Read();
