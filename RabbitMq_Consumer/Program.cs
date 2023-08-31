@@ -1,54 +1,31 @@
 ﻿using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
-using System.Text;
-//Bağlantı Oluşturma
+
 ConnectionFactory factory = new();
 factory.Uri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
-//Bağlantı aktifleştirme ve Kanal açma 
+
 using IConnection connection = factory.CreateConnection();
 using IModel channel = connection.CreateModel();
 
 
-// Queque oluşturma
-channel.QueueDeclare(queue: "example-queque", exclusive: false, durable: true); //consumerdaki kuyruk puslisherdaki ile birebir aynı yapılandırma da tanımlanlaıdır.
-
-//queque den mesaj okuma 
-
-EventingBasicConsumer consumer = new(channel);
-
-var consumerTag = channel.BasicConsume(queue: "example-queque", autoAck: false, consumer);
-
-///Mesaj işleme Konf.
-///Mesajların işleme hızını vei işlemee sırasını fair dispatch özelliğini conf. edebiliyoruz
-///parameter : prefetchSize : bir consumer tarafından alınacak en büyük mesaj boyutu byte cinsişnden beilirler 0 sınırsız demektei.
-///paramtr : prefetchCount bir consumer tarafından  aynı anda işleme alınavailecek mesaj sayısısnı belirler
-///pamater : global tüm consumerlarda mı yoksa sadece cağrı yapılan counsumerda mı yapıalcaghını belirtir
-channel.BasicQos(0, 1, false);
-
-///basicCncel methodu gelen bütün queque deki mesajları işlemez reddeder
-///channel.BasicCancel(consumerTag);
-
-///basicreject ile gelen tek bir mesajı reddeder
-///channel.BasicReject(deliveryTag:3,requeue:true);
-
-consumer.Received += (sender, e) =>
-{
-    //Kuyruga gelen mesajın işlendiği yerdir 
-    //e.body = kuyruktaki mesajın bütünsel olarak getirecetir
-    //e.body.Span vyea e.body.ToArray() kuyruktaki mesajı getirecekrie.
-
-
-    Console.WriteLine(Encoding.UTF8.GetString(e.Body.Span));
-
-    //multiple : false => sadece delete edilmesini istediğim channeldaki mesajı silinmesini istiyorum
-    channel.BasicAck(deliveryTag: e.DeliveryTag, multiple: false);
-
-    ///BasicNack ile işlenmeyen mesajları geri gönderirr
-    ///requeque parametresi işlenmeyen parametrelerin kuyrukta silinip silinmeyeceğine karar vermektedir.
-    //channel.BasicNack(deliveryTag:e.DeliveryTag,multiple:false,requeue:true);
-
-
-
-};
 
 Console.Read();
+
+
+#region P2P Tasarımı
+
+///Bu tasarımda bir publisher ilgili mesajı direkt bir kuyruğa göndeirir ve bu mesaj kuyruğu işleyen consumer tarafından tüketilir Eğerki senaryo gereği bir mesajın bir tüketici taradınfan işlenmesi gerekiyorsa bu yaklaşım kullanılır.
+
+#endregion
+
+#region Publish/Subscribe Tasarımı
+///Bu tasarımda mesajı bir exchnage gönderir ve böylece mesaj bu exchange e bind edilmiş olan tüm kuyruklara yönlendirilir. Butasarım bir mesajın birçok tüketici tarafından işlenmesi gerektiği durumlarda kullanılır.
+#endregion
+
+#region Work Queue Tasarımı 
+
+///Bu tasarımda publisher tarafından yayımlanmış bir mesajın birden fazla consumer arasından yalnızca birisi tarafıdnan tüketilmesi amaçlanmaktadır. Böylece mesajların işlenmesi sürecinde tüm consumerlar aynı iş yüküne ve görev dağılımına sahip olacaktır.
+#endregion
+
+#region Request/Response Tasarımı
+///Bu tasarımda publisher bir request yapar gibi kuyruğa mesaj gönderir ve bu mesajı tüketen consumerdan sonuca dair başka bir kuyruktan yanıt bekle bu tarz senaryoalar için oldukca yaygındır
+#endregion
