@@ -1,4 +1,6 @@
 ﻿using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
+using System.Text;
 
 ConnectionFactory factory = new();
 factory.Uri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
@@ -6,7 +8,20 @@ factory.Uri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.c
 using IConnection connection = factory.CreateConnection();
 using IModel channel = connection.CreateModel();
 
+string queueName = "example-p2p-queue";
 
+channel.QueueDeclare(queue: queueName,
+    durable: false,
+    exclusive: false,
+    autoDelete: false);
+
+EventingBasicConsumer consumer = new(channel);
+channel.BasicConsume(queue: queueName, autoAck: false, consumer: consumer);
+
+consumer.Received += async (sender, e) =>
+{
+    await Console.Out.WriteLineAsync(Encoding.UTF8.GetString(e.Body.Span));
+};
 
 Console.Read();
 
@@ -17,15 +32,3 @@ Console.Read();
 
 #endregion
 
-#region Publish/Subscribe Tasarımı
-///Bu tasarımda mesajı bir exchnage gönderir ve böylece mesaj bu exchange e bind edilmiş olan tüm kuyruklara yönlendirilir. Butasarım bir mesajın birçok tüketici tarafından işlenmesi gerektiği durumlarda kullanılır.
-#endregion
-
-#region Work Queue Tasarımı 
-
-///Bu tasarımda publisher tarafından yayımlanmış bir mesajın birden fazla consumer arasından yalnızca birisi tarafıdnan tüketilmesi amaçlanmaktadır. Böylece mesajların işlenmesi sürecinde tüm consumerlar aynı iş yüküne ve görev dağılımına sahip olacaktır.
-#endregion
-
-#region Request/Response Tasarımı
-///Bu tasarımda publisher bir request yapar gibi kuyruğa mesaj gönderir ve bu mesajı tüketen consumerdan sonuca dair başka bir kuyruktan yanıt bekle bu tarz senaryoalar için oldukca yaygındır
-#endregion
