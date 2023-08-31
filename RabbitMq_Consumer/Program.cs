@@ -1,4 +1,6 @@
 ﻿using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
+using System.Text;
 
 ConnectionFactory factory = new();
 factory.Uri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
@@ -6,26 +8,41 @@ factory.Uri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.c
 using IConnection connection = factory.CreateConnection();
 using IModel channel = connection.CreateModel();
 
+string exchangeName = "example-pub-sub-queue";
 
+channel.ExchangeDeclare(
+    exchange: exchangeName,
+    type: ExchangeType.Fanout);
+
+string queueName = channel.QueueDeclare().QueueName;
+
+channel.QueueBind(
+    queue: queueName,
+    exchange: exchangeName,
+    routingKey: string.Empty
+    );
+
+EventingBasicConsumer consumer = new(channel);
+channel.BasicConsume(queue: queueName, autoAck: false, consumer: consumer);
+
+
+///tüm consumerar o adna tek bir mesaj işleyeblir sınırsız bouytta 
+channel.BasicQos(
+    prefetchCount: 1,
+    prefetchSize: 0,
+    global: false
+    );
+
+consumer.Received += async (sender, e) =>
+{
+    await Console.Out.WriteLineAsync(Encoding.UTF8.GetString(e.Body.Span));
+};
 
 Console.Read();
 
-
-#region P2P Tasarımı
-
-///Bu tasarımda bir publisher ilgili mesajı direkt bir kuyruğa göndeirir ve bu mesaj kuyruğu işleyen consumer tarafından tüketilir Eğerki senaryo gereği bir mesajın bir tüketici taradınfan işlenmesi gerekiyorsa bu yaklaşım kullanılır.
-
-#endregion
 
 #region Publish/Subscribe Tasarımı
 ///Bu tasarımda mesajı bir exchnage gönderir ve böylece mesaj bu exchange e bind edilmiş olan tüm kuyruklara yönlendirilir. Butasarım bir mesajın birçok tüketici tarafından işlenmesi gerektiği durumlarda kullanılır.
 #endregion
 
-#region Work Queue Tasarımı 
-
-///Bu tasarımda publisher tarafından yayımlanmış bir mesajın birden fazla consumer arasından yalnızca birisi tarafıdnan tüketilmesi amaçlanmaktadır. Böylece mesajların işlenmesi sürecinde tüm consumerlar aynı iş yüküne ve görev dağılımına sahip olacaktır.
-#endregion
-
-#region Request/Response Tasarımı
-///Bu tasarımda publisher bir request yapar gibi kuyruğa mesaj gönderir ve bu mesajı tüketen consumerdan sonuca dair başka bir kuyruktan yanıt bekle bu tarz senaryoalar için oldukca yaygındır
-#endregion
+//çalıştırma test etme aşamasında 1 publisher  ve birden fazla consumerı dutnet run ile calıstırıp inceleyebilirsin.

@@ -1,4 +1,5 @@
 ﻿using RabbitMQ.Client;
+using System.Text;
 
 ConnectionFactory factory = new();
 
@@ -6,25 +7,34 @@ factory.Uri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.c
 
 using IConnection connection = factory.CreateConnection();
 using IModel channel = connection.CreateModel();
+string exchangeName = "example-pub-sub-queue";
 
+channel.ExchangeDeclare(
+    exchange: exchangeName,
+    type: ExchangeType.Fanout);
+
+
+
+for (int i = 0; i < 100; i++)
+{
+    await Task.Delay(100);
+
+    var message = Encoding.UTF8.GetBytes("merhaba " + i);
+
+    channel.BasicPublish(
+    exchange: exchangeName,
+    routingKey: string.Empty,
+    body: message
+    );
+}
 
 Console.Read();
 
-#region P2P Tasarımı
-
-///Bu tasarımda bir publisher ilgili mesajı direkt bir kuyruğa göndeirir ve bu mesaj kuyruğu işleyen consumer tarafından tüketilir Eğerki senaryo gereği bir mesajın bir tüketici taradınfan işlenmesi gerekiyorsa bu yaklaşım kullanılır.
-
-#endregion
 
 #region Publish/Subscribe Tasarımı
 ///Bu tasarımda mesajı bir exchnage gönderir ve böylece mesaj bu exchange e bind edilmiş olan tüm kuyruklara yönlendirilir. Butasarım bir mesajın birçok tüketici tarafından işlenmesi gerektiği durumlarda kullanılır.
-#endregion
+///Mesaj exchange bind edilmiş bütün kuyruklara yönlendirilir ve bircok tüketici tarafından işlenmesi gerektiği anlaıılır
 
-#region Work Queue Tasarımı 
+/// bu tasarımlarda fanout exchange kullanılabilir
 
-///Bu tasarımda publisher tarafından yayımlanmış bir mesajın birden fazla consumer arasından yalnızca birisi tarafıdnan tüketilmesi amaçlanmaktadır. Böylece mesajların işlenmesi sürecinde tüm consumerlar aynı iş yüküne ve görev dağılımına sahip olacaktır.
-#endregion
-
-#region Request/Response Tasarımı
-///Bu tasarımda publisher bir request yapar gibi kuyruğa mesaj gönderir ve bu mesajı tüketen consumerdan sonuca dair başka bir kuyruktan yanıt bekle bu tarz senaryoalar için oldukca yaygındır
 #endregion
