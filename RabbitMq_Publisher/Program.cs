@@ -1,37 +1,31 @@
 ﻿using RabbitMQ.Client;
 using System.Text;
 
+///Routing key kullanılarak mesajları kuyruklara yölnedirmek için kullanılan bir xchangedir routing keyin bir kısmına formatına yada yapısındaki keylere göre kuyruklara mesajlar gönderilir. 
+///detaylı anlatım : https://www.gencayyildiz.com/blog/rabbitmq-topic-exchange/
 ConnectionFactory factory = new();
 
-//Bağlantı Oluştuma
 factory.Uri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
 
-//Bağlantı aktiflestirme ve kanal acma
 using IConnection connection = factory.CreateConnection();
 using IModel channel = connection.CreateModel();
 
-//Que Que oluiturma 
-//QueueDeclare : parameter : durable => mesajların kalıcığı ile ilgili parametredir. kuyruk kaybını engellemek içindir.
-//QueueDeclare : parameter : exclusive=> birden fazla bağlantıyla işlem yapılıp yapılmayacağı gösteren paramtere default = true
+channel.ExchangeDeclare(
+    exchange: "topic-exchange-example",
+    type: ExchangeType.Topic
 
-channel.QueueDeclare(queue: "example-queque", exclusive: false, durable: true);
-
-
-///burdaki oluşturulan instance mesaj kaybını engellemek içindir
-IBasicProperties properties = channel.CreateBasicProperties();
-properties.Persistent = true;
-
-///Kuyruğa mesaj iletme
-// rabbitmq kuyruğa atacağı mesajları byte türünden atar ve byte dönüştürmek gerekiyor
-//channel.BasicPublish parameter : exchange default Direct Exhangtir
-//var message = Encoding.UTF8.GetBytes("Merhaba");
-//channel.BasicPublish(exchange: "", routingKey: "example-queque", body: message);
+    );
 
 for (int i = 0; i < 100; i++)
 {
-    await Task.Delay(200);
-    var message = Encoding.UTF8.GetBytes("Merhaba : " + i);
-    channel.BasicPublish(exchange: "", routingKey: "example-queque", body: message, basicProperties: properties); //basicProperties kuyrugun ve mesjaların kaybolamasını engelleycektir rabbitMq sunucusu dursa bile
+    Task.Delay(200);
+
+    var message = Encoding.UTF8.GetBytes($"Merhaba {i}");
+    Console.Write("Topic formatını Belitriniz.");
+    var topic = Console.ReadLine();
+    channel.BasicPublish(exchange: "topic-exchange-example",
+        routingKey: topic,
+        body: message);
 }
 
 Console.Read();
