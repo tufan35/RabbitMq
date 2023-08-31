@@ -1,37 +1,42 @@
 ﻿using RabbitMQ.Client;
 using System.Text;
 
+///Routing key yerine headerları kullanarak mesajları kuyruklara yönlendirmek için kullanılan exchangedir 
+//kuyruklarlar exchange arasındaki iletişim mesajların iletilme kararını headerdaki key value belirlemektedir. 
+//x-match : ilgili queque nun mesajı hangi davranısla alacağının kararını veren keydir
+//any ve all değerini alır 
+//any : iliglil quenın  sadece tek bir key value değerinin eşleşmesi durumunda mesajı alacağını ifade eder 
+//ilgilig quenin tüm key value değerindeki verileirn eşleşmesi neticesinde mesajı alacağını ifade eder
+
 ConnectionFactory factory = new();
 
-//Bağlantı Oluştuma
 factory.Uri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
 
-//Bağlantı aktiflestirme ve kanal acma
 using IConnection connection = factory.CreateConnection();
 using IModel channel = connection.CreateModel();
 
-//Que Que oluiturma 
-//QueueDeclare : parameter : durable => mesajların kalıcığı ile ilgili parametredir. kuyruk kaybını engellemek içindir.
-//QueueDeclare : parameter : exclusive=> birden fazla bağlantıyla işlem yapılıp yapılmayacağı gösteren paramtere default = true
-
-channel.QueueDeclare(queue: "example-queque", exclusive: false, durable: true);
-
-
-///burdaki oluşturulan instance mesaj kaybını engellemek içindir
-IBasicProperties properties = channel.CreateBasicProperties();
-properties.Persistent = true;
-
-///Kuyruğa mesaj iletme
-// rabbitmq kuyruğa atacağı mesajları byte türünden atar ve byte dönüştürmek gerekiyor
-//channel.BasicPublish parameter : exchange default Direct Exhangtir
-//var message = Encoding.UTF8.GetBytes("Merhaba");
-//channel.BasicPublish(exchange: "", routingKey: "example-queque", body: message);
+channel.ExchangeDeclare(
+    exchange: "header-exchange-example",
+    type: ExchangeType.Headers
+    );
 
 for (int i = 0; i < 100; i++)
 {
     await Task.Delay(200);
-    var message = Encoding.UTF8.GetBytes("Merhaba : " + i);
-    channel.BasicPublish(exchange: "", routingKey: "example-queque", body: message, basicProperties: properties); //basicProperties kuyrugun ve mesjaların kaybolamasını engelleycektir rabbitMq sunucusu dursa bile
+    byte[] message = Encoding.UTF8.GetBytes($"Merhaba {i}");
+    Console.Write("Lütden header valuesini giriniz. : ");
+    string value = Console.ReadLine();
+
+    IBasicProperties basicProperties = channel.CreateBasicProperties();
+
+    basicProperties.Headers = new Dictionary<string, object>
+    {
+        ["no"] = value
+    };
+
+    channel.BasicPublish(exchange: "header-exchange-example", routingKey: string.Empty, body: message, basicProperties: basicProperties);
+
 }
+
 
 Console.Read();
