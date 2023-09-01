@@ -1,27 +1,20 @@
-﻿
-using MassTransit;
-using RabbitMq_Consumer.Consumers;
+﻿using Microsoft.Extensions.Hosting;
 
-string RabbitMqUri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
-
-string queueName = "example-queue";
-
-IBusControl bus = Bus.Factory.CreateUsingRabbitMq(factory =>
-{
-    //hangi hosttan bilgi acalığımızı belirliyoruz
-    factory.Host(RabbitMqUri);
-
-    //bu sekılde de consumerı tanımlamıs oluyoruz
-
-    factory.ReceiveEndpoint(queueName, endpoint =>
+IHost host = Host.CreateDefaultBuilder(args)
+    .ConfigureServices((hostContext, services) =>
     {
-        endpoint.Consumer<ExampleMessageConsumer>();
-    });
-});
+        services.AddMassTransit(config =>
+        {
+            config.AddConsumer<ExampleMessageConsumer>();
 
+            config.UsingRabbitMq(context, _config =>
+            {
+                _config.Host("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
 
-await bus.StartAsync();
+                _config.ReceiveEndpoint("example-message-queue", e => e.ConfigureCpnsumer<ExampleMessageConsumer>(context));
+            });
+        });
+    })
+    .Build();
 
-Console.Read();
-
-////Burda en önemli olan nokta burdaki gelen mesajların tuketimi belirlenen Imesaj türlerine göre tüketilmektedir. 
+await host.RunAsync();

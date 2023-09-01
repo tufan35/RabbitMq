@@ -1,23 +1,25 @@
 ﻿using MassTransit;
-using Shared.Messages;
+using Microsoft.Extensions.Hosting;
 
-string RabbitMqUri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
+IHost host = Host.CreateDefaultBuilder(args)
+    .ConfigureServices((hostContext, services) =>
+    {
+        services.AddMassTransit(config =>
+        {
+            config.UsingRabbitMq(context, _config =>
+            {
+                _config.Host("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
+            });
+        });
 
-string queueName = "example-queue";
+        services.AddHostedService<PıblishMessageService>(provider =>
+        {
+            usign IServiceScope  scope = provider.CreateScope();
+            IPublishEndpoint publishEndpoint = scope.ServiceProvider.GetService<IPublishEndpoint>();
+            return new(publishEndpoint);
+        });
 
-IBusControl bus = Bus.Factory.CreateUsingRabbitMq(factory =>
-{
-    factory.Host(RabbitMqUri);
-});
+    })
+    .Build();
 
-//Tek bir kuyruga mesaj gönderilecek ise sendMesagge kullanıyoruz
-ISendEndpoint sendEndpoint = await bus.GetSendEndpoint(new($"{RabbitMqUri}/{queueName}"));
-
-Console.WriteLine("Göndeirlecek Mesaj : ");
-string message = Console.ReadLine();
-await sendEndpoint.Send<IMessage>(new ExampleMessage()
-{
-    Text = message
-});
-
-Console.Read();
+host.Run();
