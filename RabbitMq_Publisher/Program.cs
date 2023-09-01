@@ -1,37 +1,23 @@
-﻿using RabbitMQ.Client;
-using System.Text;
+﻿using MassTransit;
+using Shared.Messages;
 
-ConnectionFactory factory = new();
+string RabbitMqUri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
 
-//Bağlantı Oluştuma
-factory.Uri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
+string queueName = "example-queue";
 
-//Bağlantı aktiflestirme ve kanal acma
-using IConnection connection = factory.CreateConnection();
-using IModel channel = connection.CreateModel();
-
-//Que Que oluiturma 
-//QueueDeclare : parameter : durable => mesajların kalıcığı ile ilgili parametredir. kuyruk kaybını engellemek içindir.
-//QueueDeclare : parameter : exclusive=> birden fazla bağlantıyla işlem yapılıp yapılmayacağı gösteren paramtere default = true
-
-channel.QueueDeclare(queue: "example-queque", exclusive: false, durable: true);
-
-
-///burdaki oluşturulan instance mesaj kaybını engellemek içindir
-IBasicProperties properties = channel.CreateBasicProperties();
-properties.Persistent = true;
-
-///Kuyruğa mesaj iletme
-// rabbitmq kuyruğa atacağı mesajları byte türünden atar ve byte dönüştürmek gerekiyor
-//channel.BasicPublish parameter : exchange default Direct Exhangtir
-//var message = Encoding.UTF8.GetBytes("Merhaba");
-//channel.BasicPublish(exchange: "", routingKey: "example-queque", body: message);
-
-for (int i = 0; i < 100; i++)
+IBusControl bus = Bus.Factory.CreateUsingRabbitMq(factory =>
 {
-    await Task.Delay(200);
-    var message = Encoding.UTF8.GetBytes("Merhaba : " + i);
-    channel.BasicPublish(exchange: "", routingKey: "example-queque", body: message, basicProperties: properties); //basicProperties kuyrugun ve mesjaların kaybolamasını engelleycektir rabbitMq sunucusu dursa bile
-}
+    factory.Host(RabbitMqUri);
+});
+
+//Tek bir kuyruga mesaj gönderilecek ise sendMesagge kullanıyoruz
+ISendEndpoint sendEndpoint = await bus.GetSendEndpoint(new($"{RabbitMqUri}/{queueName}"));
+
+Console.WriteLine("Göndeirlecek Mesaj : ");
+string message = Console.ReadLine();
+await sendEndpoint.Send<IMessage>(new ExampleMessage()
+{
+    Text = message
+});
 
 Console.Read();
