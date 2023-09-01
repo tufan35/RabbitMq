@@ -1,23 +1,32 @@
 ﻿using MassTransit;
-using Shared.Messages;
+using Shared.RequestResponseMessage;
 
-string RabbitMqUri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
+string RabbitMqUri = new("amqps://iuiqgafd:pWhZoYdKBr8fMH20Ff2Yp4sRKKidm6T6@woodpecker.rmq.cloudamqp.com/iuiqgafd");
 
-string queueName = "example-queue";
+string requestQueue = "request-queue";
 
 IBusControl bus = Bus.Factory.CreateUsingRabbitMq(factory =>
 {
     factory.Host(RabbitMqUri);
 });
 
-//Tek bir kuyruga mesaj gönderilecek ise sendMesagge kullanıyoruz
-ISendEndpoint sendEndpoint = await bus.GetSendEndpoint(new($"{RabbitMqUri}/{queueName}"));
+await bus.StartAsync();
 
-Console.WriteLine("Göndeirlecek Mesaj : ");
-string message = Console.ReadLine();
-await sendEndpoint.Send<IMessage>(new ExampleMessage()
+var request = bus.CreateRequestClient<RequestMessage>(new Uri($"{RabbitMqUri}/{requestQueue}"));
+
+int i = 1;
+
+while (true)
 {
-    Text = message
-});
+    await Task.Delay(200);
+
+    var response = await request.GetResponse<ResponseMessage>(new()
+    {
+        MessageNo = i,
+        Text = $"{i++}. request"
+    });
+
+    Console.WriteLine($"received : {response.Message.Text}");
+}
 
 Console.Read();

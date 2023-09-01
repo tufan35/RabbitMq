@@ -2,26 +2,20 @@
 using MassTransit;
 using RabbitMq_Consumer.Consumers;
 
-string RabbitMqUri = new("amqps://nlehriei:6N6mjtRm7LXKuXMGFgfxGQ-GvZewo-fE@moose.rmq.cloudamqp.com/nlehriei");
+string RabbitMqUri = new("amqps://iuiqgafd:pWhZoYdKBr8fMH20Ff2Yp4sRKKidm6T6@woodpecker.rmq.cloudamqp.com/iuiqgafd");
 
-string queueName = "example-queue";
+string requestQueue = "request-queue";
 
 IBusControl bus = Bus.Factory.CreateUsingRabbitMq(factory =>
 {
-    //hangi hosttan bilgi acalığımızı belirliyoruz
+
     factory.Host(RabbitMqUri);
-
-    //bu sekılde de consumerı tanımlamıs oluyoruz
-
-    factory.ReceiveEndpoint(queueName, endpoint =>
+    factory.ReceiveEndpoint(requestQueue, endpoint =>
     {
-        endpoint.Consumer<ExampleMessageConsumer>();
+        endpoint.Consumer<RequestMessageConsumer>();
     });
+
 });
 
-
 await bus.StartAsync();
-
 Console.Read();
-
-////Burda en önemli olan nokta burdaki gelen mesajların tuketimi belirlenen Imesaj türlerine göre tüketilmektedir. 
